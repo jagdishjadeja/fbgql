@@ -7,11 +7,13 @@ All scraping logic lives in the fbgql core package.
 
 from __future__ import annotations
 
+from dataclasses import asdict
+
 from apify import Actor
 
 # ``is_post_url`` — page vs. single post is decided by the core, so this actor and any
 # other wrapper read a pasted link the same way.
-from fbgql import Account, Profile, ScrapeJob, Scraper, SessionInvalid, is_post_url
+from fbgql import Account, ScrapeJob, Scraper, SessionInvalid, is_post_url
 from fbgql.dates import parse_time_bound
 
 
@@ -86,33 +88,25 @@ async def main() -> None:
             page=None if is_post else page_or_url,
             post_url=page_or_url if is_post else None,
             max_posts=int(inp.get("maxPosts", 1)),
-            profile=Profile(inp.get("profile", "default")),
             engine=inp.get("engine", "async"),
-            workers=inp.get("workers"),
-            reply_fb_cap=inp.get("replyFbCap", -1),
             accounts=[account],
             anonymous=True,
-            min_interval_sec=float(inp.get("minIntervalSec", 1.0)),
-            mega_threshold=inp.get("megaThreshold"),
             after_time=after_time,
             before_time=before_time,
-            posts_only=bool(inp.get("postsOnly", False)),
-            max_comments=(
-                int(inp["maxComments"]) if inp.get("maxComments") is not None else None
-            ),
+            posts_only=True,
             on_progress=lambda msg: Actor.log.info(msg),
         )
 
         tz_note = f", dateTimezone={date_tz}" if after_time or before_time else ""
         Actor.log.info(
-            f"Scraping {page_or_url} (engine={job.engine}, profile={inp.get('profile')}, "
+            f"Scraping {page_or_url} (posts only, engine={job.engine}, "
             f"access=anonymous{tz_note})"
         )
 
         scraped = 0
         try:
             async for post in Scraper().astream(job):
-                await Actor.push_data(post.to_dict())
+                await Actor.push_data({"post": asdict(post.post), "error": post.error})
                 scraped += 1
         except SessionInvalid as exc:
             # No credentials are involved, so this means Facebook served a login wall —

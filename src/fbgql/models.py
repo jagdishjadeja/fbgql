@@ -180,6 +180,18 @@ class Comment:
 
 
 @dataclass
+class PostMedia:
+    """An attached photo or video; URLs may expire or be unavailable."""
+
+    type: str
+    id: str | None = None
+    url: str | None = None
+    thumbnail_url: str | None = None
+    hd_url: str | None = None
+    sd_url: str | None = None
+
+
+@dataclass
 class Post:
     post_id: str
     feedback_id: str | None
@@ -191,6 +203,7 @@ class Post:
     reaction_count: int = 0
     reactions: list[ReactionTypeCount] = field(default_factory=list)
     share_count: int = 0
+    media: list[PostMedia] = field(default_factory=list)
 
 
 @dataclass

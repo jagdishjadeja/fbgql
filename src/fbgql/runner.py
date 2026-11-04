@@ -547,6 +547,17 @@ def prepare(job: ScrapeJob) -> ExecutionPlan:
             emit(job, f"Resolved post id: {post_id}")
         posts = [Post(post_id=post_id, feedback_id=feedback_id_for_post(post_id),
                       text="", permalink=job.post_url, comment_count=0, page_name=page_name)]
+        if job.posts_only:
+            from .auth import BROWSER_HEADERS
+
+            html = transport.get(job.post_url, cookies=primary.cookies, proxy=primary.proxy,
+                                 headers=BROWSER_HEADERS)
+            matches = [p for p in parsing.parse_permalink_posts(html) if p.post_id == post_id]
+            if not matches:
+                raise ValueError("Post details are unavailable in the public permalink page.")
+            # Prefer the richest copy when Facebook embeds multiple versions.
+            posts = [max(matches, key=lambda p: (len(p.media), len(p.text)))]
+            posts[0].permalink = job.post_url
         resolved_id = None
     else:
         if not job.page:

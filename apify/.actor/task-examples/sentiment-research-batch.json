@@ -1,10 +1,9 @@
 {
-    "title": "Export 10 page posts + comments for sentiment",
-    "description": "Free: export 10 page posts + comments for sentiment/NLP. $0 developer fee; only Apify platform usage.",
+    "title": "Export 10 page posts for sentiment",
+    "description": "Extract public post data. Only Apify platform usage.",
     "input": {
         "pageOrUrl": "competitor",
         "maxPosts": 10,
-        "profile": "default",
         "engine": "async"
     }
 }

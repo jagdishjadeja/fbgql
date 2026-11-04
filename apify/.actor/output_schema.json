@@ -1,12 +1,12 @@
 {
     "actorOutputSchemaVersion": 1,
-    "title": "Facebook Page Posts & Comments Scraper output",
-    "description": "One dataset item per post: post (incl. created_time, reactions, share_count) + tops/replies/coverage + nested_replies_on + comments.",
+    "title": "Facebook Page Posts Scraper output",
+    "description": "One dataset item per post.",
     "properties": {
-        "comments": {
+        "posts": {
             "type": "string",
-            "title": "Scraped posts & comments",
-            "description": "Dataset of posts (schema_version 3) with created_time, reaction breakdowns, nested comments/replies, and nested_replies_on.",
+            "title": "Scraped posts",
+            "description": "Public post content, engagement metadata, and attached photo/video URLs in post.media.",
             "template": "{{links.apiDefaultDatasetUrl}}/items"
         }
     }

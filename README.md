@@ -1,3 +1,5 @@
+> This fork’s Apify Actor extracts posts only. Comment and reply scraping is disabled in the Actor. See [Actor documentation](apify/README.md). The library/CLI documentation below describes the upstream capabilities.
+
 # fbgql
 
 Clean-room Facebook **GraphQL** post & comment scraper — usable as a **library**, a

@@ -13,10 +13,11 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator
 from dataclasses import dataclass
+from html.parser import HTMLParser
 from typing import Any
 
 from . import config
-from .models import Comment, Media, Post, ReactionTypeCount, Reply
+from .models import Comment, Media, Post, PostMedia, ReactionTypeCount, Reply
 
 # ---------------------------------------------------------------------------
 # Low-level JSON normalization
@@ -482,6 +483,71 @@ def _story_created_time(story: dict[str, Any]) -> int | None:
     return None
 
 
+def _post_media(story: dict[str, Any]) -> list[PostMedia]:
+    """Read typed attachment media, excluding author avatars and comment media.
+
+    Attachment trees include album subattachments and video delivery wrappers.
+    A video preview is never used as its playable URL.
+    """
+    result: list[PostMedia] = []
+    seen: dict[tuple[str, str], PostMedia] = {}
+    excluded = {"feedback", "comments", "actors", "author", "owner", "profile_picture"}
+
+    def url(value: Any) -> str | None:
+        if isinstance(value, dict):
+            value = value.get("uri") or value.get("url")
+        return value if isinstance(value, str) and value.startswith(("https://", "http://")) else None
+
+    def find_url(node: Any, keys: tuple[str, ...]) -> str | None:
+        for key in keys:
+            for value in deep_find_all(node, key):
+                found = url(value)
+                if found:
+                    return found
+        return None
+
+    def visit(node: Any, in_attachment: bool = False) -> None:
+        if isinstance(node, list):
+            for item in node:
+                visit(item, in_attachment)
+            return
+        if not isinstance(node, dict):
+            return
+        kind = node.get("__typename")
+        if in_attachment and kind in {"Photo", "Video"}:
+            media_id = str(node["id"]) if node.get("id") is not None else None
+            thumbnail = find_url(node, ("preferred_thumbnail", "thumbnailImage", "thumbnail", "image"))
+            if kind == "Photo":
+                source = find_url(node, ("photo_image", "full_image", "large_image", "image", "viewer_image"))
+                item = PostMedia(type="photo", id=media_id, url=source, thumbnail_url=thumbnail)
+            else:
+                hd = find_url(node, ("browser_native_hd_url", "playable_url_quality_hd"))
+                sd = find_url(node, ("browser_native_sd_url", "playable_url"))
+                source = hd or sd or find_url(node, ("playable_url_dash",))
+                item = PostMedia(type="video", id=media_id, url=source,
+                                 thumbnail_url=thumbnail, hd_url=hd, sd_url=sd)
+            identity = media_id or item.url or item.thumbnail_url
+            if identity:
+                key = (item.type, identity)
+                previous = seen.get(key)
+                if previous is None:
+                    seen[key] = item
+                    result.append(item)
+                else:
+                    for field in ("url", "thumbnail_url", "hd_url", "sd_url"):
+                        if getattr(previous, field) is None:
+                            setattr(previous, field, getattr(item, field))
+                    if previous.type == "video":
+                        previous.url = previous.hd_url or previous.sd_url or previous.url
+            return
+        for key, value in node.items():
+            if key not in excluded:
+                visit(value, in_attachment or key in {"attachments", "subattachments"})
+
+    visit(story)
+    return result
+
+
 def _story_to_post(story: dict[str, Any], page_name: str | None) -> Post | None:
     post_id = story.get("post_id") or deep_find_first(story, "post_id")
     if not post_id:
@@ -504,6 +570,7 @@ def _story_to_post(story: dict[str, Any], page_name: str | None) -> Post | None:
         reaction_count=reaction_count,
         reactions=reactions,
         share_count=share_count,
+        media=_post_media(story),
     )
 
 
@@ -529,6 +596,35 @@ def parse_posts(text: str, page_name: str | None = None) -> tuple[list[Post], st
                 posts.append(post)
 
     return posts, end_cursor
+
+
+def parse_permalink_posts(html: str) -> list[Post]:
+    """Extract stories from JSON script blocks in a public permalink page."""
+    class Scripts(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.active = False
+            self.chunks: list[str] = []
+            self.posts: list[Post] = []
+
+        def handle_starttag(self, tag, attrs):
+            if tag == "script":
+                self.active = dict(attrs).get("type") == "application/json"
+                self.chunks = []
+
+        def handle_data(self, data):
+            if self.active:
+                self.chunks.append(data)
+
+        def handle_endtag(self, tag):
+            if tag == "script" and self.active:
+                posts, _ = parse_posts("".join(self.chunks))
+                self.posts.extend(posts)
+                self.active = False
+
+    parser = Scripts()
+    parser.feed(html)
+    return parser.posts
 
 
 def _iter_story_dicts(obj: Any) -> Iterator[dict[str, Any]]:

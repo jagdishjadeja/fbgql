@@ -2,29 +2,23 @@
     "actorSpecification": 1,
     "views": {
         "overview": {
-            "title": "Posts & comments overview",
-            "description": "One row per scraped post: coverage, nested_replies_on (true/false), and errors. Post object includes created_time.",
+            "title": "Posts overview",
+            "description": "One row per post, including timestamps, reactions, shares, photo/video media, and errors.",
             "transformation": {
                 "fields": [
                     "post",
-                    "tops",
-                    "replies",
-                    "total_scraped",
-                    "coverage",
-                    "nested_replies_on",
                     "error"
                 ]
             },
             "display": {
                 "component": "table",
                 "properties": {
-                    "post": { "label": "Post" },
-                    "tops": { "label": "Top comments" },
-                    "replies": { "label": "Replies" },
-                    "total_scraped": { "label": "Scraped" },
-                    "coverage": { "label": "Coverage" },
-                    "nested_replies_on": { "label": "Nested replies on", "format": "boolean" },
-                    "error": { "label": "Error" }
+                    "post": {
+                        "label": "Post"
+                    },
+                    "error": {
+                        "label": "Error"
+                    }
                 }
             }
         }

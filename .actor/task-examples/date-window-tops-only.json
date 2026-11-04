@@ -1,13 +1,11 @@
 {
-    "title": "Posts in a date window (tops only)",
-    "description": "Walk the page feed for one local day (dateTimezone); tops only; cap at 500 top-level comments. maxPosts is ignored when afterDate/beforeDate are set. $0 developer fee; only Apify platform usage.",
+    "title": "Posts in a date window",
+    "description": "Extract public post data. Only Apify platform usage.",
     "input": {
         "pageOrUrl": "ronaldo",
         "afterDate": "2026-07-31",
         "beforeDate": "2026-08-01",
         "dateTimezone": "+3",
-        "profile": "tops_only",
-        "maxComments": 500,
         "engine": "async"
     }
 }

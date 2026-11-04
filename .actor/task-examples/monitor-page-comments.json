@@ -1,10 +1,9 @@
 {
-    "title": "Scrape last 5 page posts + comments",
-    "description": "Free: scrape 5 recent page posts + comments for brand monitoring. $0 developer fee; only Apify platform usage.",
+    "title": "Scrape last 5 page posts",
+    "description": "Extract public post data. Only Apify platform usage.",
     "input": {
         "pageOrUrl": "yourbrand",
         "maxPosts": 5,
-        "profile": "default",
         "engine": "async"
     }
 }

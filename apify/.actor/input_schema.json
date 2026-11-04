@@ -1,13 +1,13 @@
 {
-    "title": "Facebook Page Posts & Comments Scraper input",
-    "description": "Free page URL → recent posts + comments scraper. No login. Also profiles, groups, and single post URLs. $0 developer fee; only Apify platform usage.",
+    "title": "Facebook Page Posts Scraper input",
+    "description": "Extract public posts from pages, profiles, groups, or a single post URL.",
     "type": "object",
     "schemaVersion": 1,
     "properties": {
         "pageOrUrl": {
             "title": "Page, profile, group, or post URL",
             "type": "string",
-            "description": "Page/profile handle, group URL, or post URL. For a Page: scrapes N recent posts then each comment thread. For a post URL: that thread only. Private or login-gated targets cannot be scraped — the run finishes with a single row explaining why instead of posts. If a handle returns 0 posts, try the numeric id or change residential proxy country (see README troubleshooting).",
+            "description": "Page/profile handle, group URL, or single post URL. Extracts public post data. Private or login-gated targets return an explanatory error row.",
             "editor": "textfield",
             "prefill": "ronaldo",
             "example": "ronaldo"
@@ -15,29 +15,11 @@
         "maxPosts": {
             "title": "Max recent posts from page feed",
             "type": "integer",
-            "description": "How many recent feed posts to scrape (with comments). Ignored when afterDate/beforeDate is set — then the Actor walks the feed until the date window ends. Ignored for a single post URL. Each post's comments are paginated in full, so runtime and proxy cost scale with how many comments the posts have — raise this once you have seen what one post costs on your target.",
+            "description": "Maximum recent feed posts to extract. Ignored for a single post URL or when filtering by date.",
             "default": 1,
             "prefill": 1,
             "minimum": 1,
             "maximum": 200
-        },
-        "profile": {
-            "title": "Policy profile",
-            "type": "string",
-            "description": "default = 3 workers + reply cap 1500 (best quality/time); tops_only = no replies; full_replies = always fetch replies (not recommended).",
-            "enum": [
-                "default",
-                "tops_only",
-                "full_replies"
-            ],
-            "enumTitles": [
-                "Default (recommended)",
-                "Tops only",
-                "Full replies"
-            ],
-            "default": "default",
-            "prefill": "tops_only",
-            "editor": "select"
         },
         "engine": {
             "title": "Engine",
@@ -53,7 +35,7 @@
         "proxyConfiguration": {
             "title": "Proxy",
             "type": "object",
-            "description": "Apify residential proxy (on by default). Main reliability lever. If runs return 0 posts for a public target, set proxy country to match the audience (or your country) and retry — wrong exits often get empty feeds.",
+            "description": "Apify residential proxy (on by default). Main reliability lever. If runs return 0 posts for a public target, set proxy country to match the audience (or your country) and retry \u2014 wrong exits often get empty feeds.",
             "editor": "proxy",
             "default": {
                 "useApifyProxy": true,
@@ -86,49 +68,6 @@
             "default": "UTC",
             "editor": "textfield",
             "prefill": "UTC"
-        },
-        "postsOnly": {
-            "title": "Posts only",
-            "type": "boolean",
-            "description": "Discover posts (with created_time) and skip comment/reply scraping. nested_replies_on will be false.",
-            "default": false,
-            "editor": "checkbox"
-        },
-        "workers": {
-            "title": "Workers (advanced)",
-            "type": "integer",
-            "description": "Override the worker count from the profile.",
-            "minimum": 1,
-            "maximum": 8,
-            "editor": "number",
-            "sectionCaption": "Advanced"
-        },
-        "replyFbCap": {
-            "title": "Reply cap (advanced)",
-            "type": "integer",
-            "description": "Fetch replies only when a post's FB comment_count is below this. 0 = tops only.",
-            "editor": "number"
-        },
-        "maxComments": {
-            "title": "Max comments per post",
-            "type": "integer",
-            "description": "Stop paginating top-level comments after this many per post. Heavy threads are truncated instead of skipped. Leave empty for no limit.",
-            "editor": "number",
-            "minimum": 0,
-            "prefill": 100
-        },
-        "minIntervalSec": {
-            "title": "Min interval seconds (advanced)",
-            "type": "number",
-            "description": "Pause between comment pages, per worker. Higher = gentler on rate limits.",
-            "default": 1.0,
-            "editor": "number"
-        },
-        "megaThreshold": {
-            "title": "Mega threshold (advanced)",
-            "type": "integer",
-            "description": "If set, pin the single heaviest post to a dedicated worker.",
-            "editor": "number"
         }
     },
     "required": [

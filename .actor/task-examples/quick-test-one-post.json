@@ -1,11 +1,9 @@
 {
-    "title": "Quick test — 1 page post + comments",
-    "description": "Free quick test: 1 recent page post + comments (tops only, cap 100). $0 developer fee; only Apify platform usage.",
+    "title": "Quick test \u2014 1 page post",
+    "description": "Extract public post data. Only Apify platform usage.",
     "input": {
         "pageOrUrl": "ronaldo",
         "maxPosts": 1,
-        "maxComments": 100,
-        "profile": "tops_only",
         "engine": "async"
     }
 }

@@ -1,9 +1,8 @@
 {
-    "title": "Scrape one Facebook post comments thread",
-    "description": "Free: scrape one post URL’s comments thread. $0 developer fee; only Apify platform usage.",
+    "title": "Scrape one Facebook post",
+    "description": "Extract public post data. Only Apify platform usage.",
     "input": {
         "pageOrUrl": "https://www.facebook.com/yourpage/posts/1234567890",
-        "profile": "default",
         "engine": "async"
     }
 }

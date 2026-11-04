@@ -1,18 +1,19 @@
 {
     "actorSpecification": 1,
-    "name": "facebook-comment-scraper",
-    "title": "Facebook Page Posts & Comments Scraper",
-    "description": "Free Facebook page posts & comments scraper. Paste a Page URL or handle — scrapes N recent posts and their comments/replies as JSON. Also public groups, profiles, and single post URLs. No login. $0 developer fee; only Apify platform usage.",
-    "seoTitle": "Free Facebook Page Posts & Comments Scraper | Apify",
-    "seoDescription": "Free Facebook scraper: paste a Page URL for recent posts + comments. No login. Groups, profiles, single posts too. $0 developer fee; only Apify platform usage.",
+    "name": "facebook-post-scraper",
+    "title": "Facebook Page Posts Scraper",
+    "description": "Scrape public Facebook posts from pages, profiles, groups, or a single post URL. No login. Optional date filters. Only Apify platform usage.",
+    "seoTitle": "Facebook Page Posts Scraper | Apify",
+    "seoDescription": "Extract public Facebook posts, timestamps, reactions, shares, and reported comment counts. No login.",
     "version": "0.3",
     "buildTag": "latest",
-    "categories": ["SOCIAL_MEDIA", "DEVELOPER_TOOLS"],
+    "categories": [
+        "SOCIAL_MEDIA",
+        "DEVELOPER_TOOLS"
+    ],
     "exampleRunInput": {
         "pageOrUrl": "ronaldo",
         "maxPosts": 1,
-        "maxComments": 100,
-        "profile": "tops_only",
         "engine": "async"
     },
     "meta": {
