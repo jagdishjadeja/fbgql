@@ -7,8 +7,10 @@ All scraping logic lives in the fbgql core package.
 
 from __future__ import annotations
 
+import os
 from dataclasses import asdict
 from hashlib import sha256
+from urllib.parse import urlsplit
 
 from apify import Actor
 
@@ -16,6 +18,32 @@ from apify import Actor
 # other wrapper read a pasted link the same way.
 from fbgql import Account, ScrapeJob, Scraper, SessionInvalid, is_post_url
 from fbgql.dates import parse_time_bound
+
+
+async def _send_webhook(url: str, target: str, posts: list[dict]) -> None:
+    """Deliver once; a failed delivery must not advance the new-post checkpoint."""
+    import httpx
+
+    headers = {"Content-Type": "application/json"}
+    token = os.environ.get("WEBHOOK_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    payload = {
+        "status": "SUCCEEDED",
+        "count": len(posts),
+        "posts": posts,
+        "pageOrUrl": target,
+        "runId": os.environ.get("APIFY_ACTOR_RUN_ID"),
+    }
+    try:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=False) as client:
+            response = await client.post(url, headers=headers, json=payload)
+    except httpx.RequestError:
+        # Avoid exposing token-bearing URLs or response bodies in actor logs.
+        raise RuntimeError("Webhook delivery failed due to a network error or timeout") from None
+    if not 200 <= response.status_code < 300:
+        raise RuntimeError(f"Webhook delivery failed: HTTP {response.status_code}")
+    Actor.log.info(f"Sent {len(posts)} posts to webhook")
 
 
 async def _finish_unreachable(target: str, reason: str) -> None:
@@ -38,6 +66,13 @@ async def main() -> None:
         page_or_url = inp.get("pageOrUrl")
         if not page_or_url:
             raise ValueError("Input 'pageOrUrl' is required")
+
+        webhook_url = (inp.get("webhookUrl") or "").strip()
+        if webhook_url:
+            parsed_url = urlsplit(webhook_url)
+            if (parsed_url.scheme not in ("https", "http") or not parsed_url.hostname
+                    or parsed_url.username or parsed_url.password or parsed_url.fragment):
+                raise ValueError("webhookUrl must be an HTTP(S) URL without credentials or a fragment")
 
         # This actor is anonymous-only: it scrapes logged-out public content as actor 0
         # and takes no Facebook credentials. A public actor must never ask users to paste
@@ -113,7 +148,7 @@ async def main() -> None:
             after_time=after_time,
             before_time=before_time,
             posts_only=True,
-            fail_on_partial=only_new,
+            fail_on_partial=only_new or bool(webhook_url),
             on_progress=lambda msg: Actor.log.info(msg),
         )
 
@@ -125,13 +160,19 @@ async def main() -> None:
 
         scraped = 0
         discovered = 0
+        webhook_posts = []
         try:
             async for post in Scraper().astream(job):
                 discovered += 1
                 post_id = post.post.post_id
                 if only_new and post_id in seen:
                     continue
-                await Actor.push_data({"post": asdict(post.post), "error": post.error})
+                if webhook_url and post.error:
+                    raise RuntimeError("Post extraction failed; success webhook was not sent")
+                post_data = asdict(post.post)
+                await Actor.push_data({"post": post_data, "error": post.error})
+                if webhook_url:
+                    webhook_posts.append(post_data)
                 scraped += 1
                 if only_new and not post.error:
                     seen.add(post_id)
@@ -162,6 +203,9 @@ async def main() -> None:
                 "post URL. See the Actor README troubleshooting section.",
             )
             return
+
+        if webhook_url:
+            await _send_webhook(webhook_url, page_or_url, webhook_posts)
 
         if store is not None and discovered:
             await store.set_value(state_key, {

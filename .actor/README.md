@@ -63,8 +63,42 @@ date filters cannot be combined with this mode. Posts delayed beyond the overlap
 may be missed; edits to existing posts are not exported again. If timestamps are
 unavailable, discovery continues using `maxPosts` and ID deduplication.
 
-Checkpoints are saved after dataset writes and successful completion. Interrupted
+Checkpoints are saved after dataset writes, successful webhook delivery (if configured), and successful completion. Interrupted
 runs can repeat already-written rows on retry; dataset and checkpoint writes are
 not transactional. Run sequentially per target/store to avoid concurrent updates.
 No new posts produces an empty dataset. Named stores retain the exported IDs and
 grow with use. Single-post URLs are deduplicated by their post ID.
+
+## Success webhook
+
+Set `webhookUrl` to receive collected posts after scraping and dataset writes
+succeed. Omit it to disable delivery. For example:
+
+```json
+{
+  "pageOrUrl": "https://www.facebook.com/groups/3140606822849177",
+  "maxPosts": 100,
+  "onlyNewPosts": true,
+  "webhookUrl": "https://findmyflat.formics.online/api/webhooks/receive"
+}
+```
+
+If your receiver requires authentication, set `WEBHOOK_TOKEN` as a secret Actor
+environment variable. It is sent as `Authorization: Bearer ...`; it is not an
+input field. The existing PocketBase receiver logs payloads and acknowledges them;
+it does not yet validate this token or save posts to a collection.
+
+The JSON payload is `{ "status": "SUCCEEDED", "count": 1, "posts": [...],
+"pageOrUrl": "...", "runId": "..." }`. Each entry in `posts` is the post object
+(including `media`), without the dataset's outer `post`/`error` wrapper. `runId` is
+null locally. With `onlyNewPosts: true`, already-exported IDs are excluded. A
+successful incremental run with no new posts sends `count: 0, posts: []`.
+
+Unreachable targets and failed or partial scrapes do not send a success webhook.
+Delivery requires HTTP 2xx, has a 30-second network timeout, and does not follow
+redirects or automatically retry. Delivery failure fails the run and leaves the
+prior checkpoint unchanged; dataset rows already written remain available.
+Re-running can redeliver posts (for example if the receiver accepted the request
+but its response was lost). Receivers should deduplicate by post ID. Changes to
+the destination do not reset existing checkpoints. No webhook is sent by this
+code change alone; configure the input and deploy/rebuild the Actor to enable it.

@@ -82,6 +82,14 @@
             "description": "Named persistent key-value store. Reuse for future runs; use a new name to start fresh.",
             "default": "fbgql-post-checkpoints",
             "editor": "textfield"
+        },
+        "webhookUrl": {
+            "title": "Success webhook URL",
+            "type": "string",
+            "editor": "textfield",
+            "description": "Optional HTTP(S) endpoint receiving the actual collected posts after successful scraping and dataset writes. Set WEBHOOK_TOKEN as a secret environment variable for Bearer authentication. Failed delivery fails the run and preserves the prior new-post checkpoint.",
+            "pattern": "^https?://[^\\s]+$",
+            "sectionCaption": "Webhook"
         }
     },
     "required": [
