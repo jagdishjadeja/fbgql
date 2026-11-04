@@ -8,6 +8,7 @@ All scraping logic lives in the fbgql core package.
 from __future__ import annotations
 
 from dataclasses import asdict
+from hashlib import sha256
 
 from apify import Actor
 
@@ -84,6 +85,24 @@ async def main() -> None:
             )
             return
 
+        only_new = bool(inp.get("onlyNewPosts", False))
+        store = None
+        state = {}
+        seen = set()
+        if only_new:
+            if after_time is not None or before_time is not None:
+                raise ValueError("onlyNewPosts cannot be combined with explicit date filters")
+            store = await Actor.open_key_value_store(
+                name=inp.get("checkpointStoreName") or "fbgql-post-checkpoints"
+            )
+            # Keep input identity explicit: use the same target string on every run.
+            state_key = sha256(page_or_url.strip().encode()).hexdigest()
+            state = await store.get_value(state_key) or {}
+            seen = set(state.get("post_ids", []))
+            if state.get("latest_timestamp") is not None and not is_post:
+                after_time = max(0, state["latest_timestamp"] - 86400)
+        latest = state.get("latest_timestamp")
+
         job = ScrapeJob(
             page=None if is_post else page_or_url,
             post_url=page_or_url if is_post else None,
@@ -94,6 +113,7 @@ async def main() -> None:
             after_time=after_time,
             before_time=before_time,
             posts_only=True,
+            fail_on_partial=only_new,
             on_progress=lambda msg: Actor.log.info(msg),
         )
 
@@ -104,10 +124,20 @@ async def main() -> None:
         )
 
         scraped = 0
+        discovered = 0
         try:
             async for post in Scraper().astream(job):
+                discovered += 1
+                post_id = post.post.post_id
+                if only_new and post_id in seen:
+                    continue
                 await Actor.push_data({"post": asdict(post.post), "error": post.error})
                 scraped += 1
+                if only_new and not post.error:
+                    seen.add(post_id)
+                    timestamp = post.post.created_time
+                    if timestamp is not None:
+                        latest = max(latest or 0, timestamp)
         except SessionInvalid as exc:
             # No credentials are involved, so this means Facebook served a login wall —
             # typically a blocked/flagged IP or a target that isn't publicly visible.
@@ -122,7 +152,7 @@ async def main() -> None:
             await _finish_unreachable(page_or_url, str(exc))
             return
 
-        if scraped == 0 and not is_post:
+        if discovered == 0 and not is_post and not state:
             await _finish_unreachable(
                 page_or_url,
                 f"No posts found for {page_or_url!r}. Common causes: (1) residential "
@@ -132,5 +162,12 @@ async def main() -> None:
                 "post URL. See the Actor README troubleshooting section.",
             )
             return
+
+        if store is not None and discovered:
+            await store.set_value(state_key, {
+                "target": page_or_url.strip(),
+                "latest_timestamp": latest,
+                "post_ids": sorted(seen),
+            })
 
         Actor.log.info(f"Done. Pushed {scraped} posts to the dataset.")

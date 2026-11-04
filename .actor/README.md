@@ -50,3 +50,21 @@ Media is extracted from data Facebook returns to the anonymous session. Files ar
 not downloaded, and Facebook CDN URLs may expire. Some media or video qualities
 may be unavailable. Single-post URLs read embedded public post data; if Facebook
 does not expose the matching post, the actor returns an explanatory error row.
+
+## Only new posts
+
+Set `onlyNewPosts: true` to remember exported post IDs in the named Apify
+Key-Value Store `fbgql-post-checkpoints`. Override `checkpointStoreName` to keep
+independent histories or start fresh. Use the exact same `pageOrUrl` on each run.
+
+The first run uses `maxPosts`. Later runs scan from the latest saved timestamp
+with a 24-hour overlap, ignore `maxPosts`, and export only unseen IDs. Explicit
+date filters cannot be combined with this mode. Posts delayed beyond the overlap
+may be missed; edits to existing posts are not exported again. If timestamps are
+unavailable, discovery continues using `maxPosts` and ID deduplication.
+
+Checkpoints are saved after dataset writes and successful completion. Interrupted
+runs can repeat already-written rows on retry; dataset and checkpoint writes are
+not transactional. Run sequentially per target/store to avoid concurrent updates.
+No new posts produces an empty dataset. Named stores retain the exported IDs and
+grow with use. Single-post URLs are deduplicated by their post ID.

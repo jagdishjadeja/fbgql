@@ -116,6 +116,7 @@ class ScrapeJob:
 
     # Discover posts only — skip comment/reply pagination. Useful for date-range probes.
     posts_only: bool = False
+    fail_on_partial: bool = False  # checkpointed runs must not advance after partial discovery
 
     # Cap top-level comments scraped per post (pagination stops at this many tops).
     # None = no limit. Replies (if enabled) are only fetched for the kept tops.

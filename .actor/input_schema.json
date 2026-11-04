@@ -68,6 +68,20 @@
             "default": "UTC",
             "editor": "textfield",
             "prefill": "UTC"
+        },
+        "onlyNewPosts": {
+            "title": "Only new posts",
+            "type": "boolean",
+            "description": "Remember exported post IDs across runs. First run uses maxPosts; later runs scan from the saved timestamp with a 24-hour overlap. Do not combine with date filters. Run sequentially for each target.",
+            "default": false,
+            "editor": "checkbox"
+        },
+        "checkpointStoreName": {
+            "title": "Checkpoint store name",
+            "type": "string",
+            "description": "Named persistent key-value store. Reuse for future runs; use a new name to start fresh.",
+            "default": "fbgql-post-checkpoints",
+            "editor": "textfield"
         }
     },
     "required": [

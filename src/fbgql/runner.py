@@ -337,10 +337,10 @@ def _past_date_window(page_posts: list[Post], job: ScrapeJob) -> bool:
     """True when the feed (newest-first) has scrolled past ``after_time``."""
     if job.after_time is None:
         return False
-    for p in page_posts:
-        if p.created_time is not None and p.created_time < job.after_time:
-            return True
-    return False
+    return bool(page_posts) and all(
+        p.created_time is not None and p.created_time < job.after_time
+        for p in page_posts
+    )
 
 
 def _under_post_cap(posts: list[Post], job: ScrapeJob) -> bool:
@@ -384,7 +384,7 @@ def _paginate_feed(
                 f"kept {len(kept)} (total {len(posts)})"
                 + (f", cursor={'yes' if cursor else 'end'}")
             )
-            if _past_date_window(page_posts, job):
+            if _past_date_window(page_posts, job) and not job.fail_on_partial:
                 emit(job, "Reached end of date window on first feed page")
                 cursor = None
             break
@@ -400,6 +400,8 @@ def _paginate_feed(
             page_posts, cursor = fetch_page(chosen, cursor)
             feed_page += 1
         except (SessionInvalid, RequestRejected, TransportError) as exc:
+            if job.fail_on_partial:
+                raise
             # Blocked mid-pagination — keep what we have.
             emit(job, f"Feed pagination stopped ({type(exc).__name__}); keeping {len(posts)} posts")
             break
@@ -407,6 +409,8 @@ def _paginate_feed(
             empty_pages += 1
             emit(job, f"Feed page {feed_page}: empty ({empty_pages}/3)")
             if empty_pages >= 3 or not cursor:
+                if job.fail_on_partial and cursor:
+                    raise TransportError("Feed pagination returned repeated empty pages")
                 break
             time.sleep(2)
             continue
